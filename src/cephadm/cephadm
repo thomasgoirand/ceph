@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 
-DEFAULT_IMAGE = 'docker.io/ceph/daemon-base:latest-master-devel'
-DEFAULT_IMAGE_IS_MASTER = True
+# Default container images -----------------------------------------------------
+DEFAULT_CEPH_IMAGE = 'docker.io/ceph/daemon-base:latest-master-devel'
+DEFAULT_PROMETHEUS_IMAGE = "docker.io/prom/prometheus:v2.18.1"
+DEFAULT_NODE_EXPORTER_IMAGE = "docker.io/prom/node-exporter:v0.18.1"
+DEFAULT_GRAFANA_IMAGE = "docker.io/ceph/ceph-grafana:6.7.4"
+DEFAULT_ALERT_MANAGER_IMAGE= "docker.io/prom/alertmanager:v0.20.0"
+# ------------------------------------------------------------------------------
+
 LATEST_STABLE_RELEASE = 'octopus'
 DATA_DIR = '/var/lib/ceph'
 LOG_DIR = '/var/log/ceph'
@@ -168,7 +174,7 @@ class Monitoring(object):
 
     components = {
         "prometheus": {
-            "image": "docker.io/prom/prometheus:v2.18.1",
+            "image": DEFAULT_PROMETHEUS_IMAGE,
             "cpus": '2',
             "memory": '4GB',
             "args": [
@@ -181,7 +187,7 @@ class Monitoring(object):
             ],
         },
         "node-exporter": {
-            "image": "docker.io/prom/node-exporter:v0.18.1",
+            "image": DEFAULT_NODE_EXPORTER_IMAGE,
             "cpus": "1",
             "memory": "1GB",
             "args": [
@@ -189,7 +195,7 @@ class Monitoring(object):
             ],
         },
         "grafana": {
-            "image": "docker.io/ceph/ceph-grafana:6.7.4",
+            "image": DEFAULT_GRAFANA_IMAGE,
             "cpus": "2",
             "memory": "4GB",
             "args": [],
@@ -201,7 +207,7 @@ class Monitoring(object):
             ],
         },
         "alertmanager": {
-            "image": "docker.io/prom/alertmanager:v0.20.0",
+            "image": DEFAULT_ALERT_MANAGER_IMAGE,
             "cpus": "2",
             "memory": "2GB",
             "args": [
@@ -247,7 +253,7 @@ class NFSGanesha(object):
                  fsid,
                  daemon_id,
                  config_json,
-                 image=DEFAULT_IMAGE):
+                 image=DEFAULT_CEPH_IMAGE):
         # type: (str, Union[int, str], Dict, str) -> None
         self.fsid = fsid
         self.daemon_id = daemon_id
@@ -406,7 +412,7 @@ class CephIscsi(object):
                  fsid,
                  daemon_id,
                  config_json,
-                 image=DEFAULT_IMAGE):
+                 image=DEFAULT_CEPH_IMAGE):
         # type: (str, Union[int, str], Dict, str) -> None
         self.fsid = fsid
         self.daemon_id = daemon_id
@@ -1521,14 +1527,14 @@ def infer_config(func):
 
 
 def _get_default_image():
-    if DEFAULT_IMAGE_IS_MASTER:
+    if DEFAULT_CEPH_IMAGE == 'docker.io/ceph/daemon-base:latest-master-devel':
         warn = '''This is a development version of cephadm.
 For information regarding the latest stable release:
     https://docs.ceph.com/docs/{}/cephadm/install
 '''.format(LATEST_STABLE_RELEASE)
         for line in warn.splitlines():
             logger.warning('{}{}{}'.format(termcolor.yellow, line, termcolor.end))
-    return DEFAULT_IMAGE
+    return DEFAULT_CEPH_IMAGE
 
 
 def infer_image(func):
@@ -2357,7 +2363,7 @@ def deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid,
                 deploy_daemon_units(fsid, uid, gid, daemon_type, daemon_id, c,
                                     osd_fsid=osd_fsid)
             else:
-                raise RuntimeError("attempting to deploy a daemon without a container image") 
+                raise RuntimeError("attempting to deploy a daemon without a container image")
 
     if not os.path.exists(data_dir + '/unit.created'):
         with open(data_dir + '/unit.created', 'w') as f:
@@ -3745,12 +3751,12 @@ def command_deploy():
         if not daemon_ports:
             logger.info("cephadm-exporter will use default port ({})".format(CephadmDaemon.default_port))
             daemon_ports =[CephadmDaemon.default_port]
-           
+
         CephadmDaemon.validate_config(config_js)
-        
+
         deploy_daemon(args.fsid, daemon_type, daemon_id, None,
                       uid, gid, ports=daemon_ports)
-    
+
     else:
         raise Error('daemon type {} not implemented in command_deploy function'
                     .format(daemon_type))
@@ -5898,8 +5904,8 @@ class CephadmCache:
         self.daemons = {}
         self.host = {}
         self.lock = RLock()
-    
-    @property 
+
+    @property
     def health(self):
         return {
             "started_epoch_secs": self.started_epoch_secs,
@@ -5953,7 +5959,7 @@ class CephadmDaemonHandler(BaseHTTPRequestHandler):
         @classmethod
         def authorize(cls, f):
             """Implement a basic token check.
-            
+
             The token is installed at deployment time and must be provided to
             ensure we only respond to callers who know our token i.e. mgr
             """
@@ -5964,7 +5970,7 @@ class CephadmDaemonHandler(BaseHTTPRequestHandler):
                     return
                 f(self, *args, **kwargs)
             return wrapper
-    
+
     def _help_page(self):
         return """<!DOCTYPE html>
 <html>
@@ -6012,7 +6018,7 @@ td,th {{
         """Handle *all* GET requests"""
 
         if self.path == '/':
-            # provide a html response if someone hits the root url, to document the 
+            # provide a html response if someone hits the root url, to document the
             # available api endpoints
             return self._fetch_root()
         elif self.path in CephadmDaemonHandler.valid_routes:
@@ -6042,7 +6048,7 @@ td,th {{
                 if tasks['daemons'] == 'inactive':
                     status_code = 204
             elif u == 'disks':
-                data = json.dumps(self.server.cephadm_cache.disks)    
+                data = json.dumps(self.server.cephadm_cache.disks)
                 if tasks['disks'] == 'inactive':
                     status_code = 204
             elif u == 'host':
@@ -6065,7 +6071,7 @@ td,th {{
             self.send_header('Content-type','application/json')
             self.end_headers()
             self.wfile.write(json.dumps({"message": bad_request_msg}).encode('utf-8'))
-    
+
     def log_message(self, format, *args):
         rqst = " ".join(str(a) for a in args)
         logger.info(f"client:{self.address_string()} [{self.log_date_time_string()}] {rqst}")
@@ -6089,7 +6095,7 @@ class CephadmDaemon():
 
     def __init__(self, fsid, daemon_id=None, port=None):
         self.fsid = fsid
-        self.daemon_id = daemon_id 
+        self.daemon_id = daemon_id
         if not port:
             self.port = CephadmDaemon.default_port
         else:
@@ -6108,7 +6114,7 @@ class CephadmDaemon():
 
         if not config or not all([k_name in config for k_name in CephadmDaemon.config_requirements]):
             raise Error(f"config must contain the following fields : {reqs}")
-        
+
         if not all([isinstance(config[k_name], str) for k_name in CephadmDaemon.config_requirements]):
             errors.append(f"the following fields must be strings: {reqs}")
 
@@ -6130,7 +6136,7 @@ class CephadmDaemon():
                     raise ValueError
             except (TypeError, ValueError):
                 errors.append("port must be an integer > 1024")
-        
+
         if errors:
             raise Error("Parameter errors : {}".format(", ".join(errors)))
 
@@ -6195,7 +6201,7 @@ class CephadmDaemon():
         exception_encountered = False
 
         while True:
-            
+
             if self.stop or exception_encountered:
                 break
 
@@ -6224,17 +6230,17 @@ class CephadmDaemon():
                             "scrape_timestamp": s_time,
                             "scrape_duration_secs": elapsed,
                             "scrape_errors": errors,
-                            "data": data,                    
+                            "data": data,
                         }
                     )
                     logger.debug(f"completed host-facts scrape - {elapsed}s")
-            
+
             time.sleep(CephadmDaemon.loop_delay)
             ctr += CephadmDaemon.loop_delay
         logger.info("host-facts thread stopped")
 
     def _scrape_ceph_volume(self, refresh_interval=15):
-        # we're invoking the ceph_volume command, so we need to set the args that it 
+        # we're invoking the ceph_volume command, so we need to set the args that it
         # expects to use
         args.command = "inventory --format=json".split()
         args.fsid = self.fsid
@@ -6262,7 +6268,7 @@ class CephadmDaemon():
                 else:
                     elapsed = time.time() - s_time
 
-                    # if the call to ceph-volume returns junk with the 
+                    # if the call to ceph-volume returns junk with the
                     # json, it won't parse
                     stdout = stream.getvalue()
 
@@ -6283,14 +6289,14 @@ class CephadmDaemon():
                             "scrape_timestamp": s_time,
                             "scrape_duration_secs": elapsed,
                             "scrape_errors": errors,
-                            "data": data, 
+                            "data": data,
                         }
                     )
-                    
+
                     logger.debug(f"completed ceph-volume scrape - {elapsed}s")
             time.sleep(CephadmDaemon.loop_delay)
             ctr += CephadmDaemon.loop_delay
-        
+
         logger.info("ceph-volume thread stopped")
 
     def _scrape_list_daemons(self, refresh_interval=20):
@@ -6299,13 +6305,13 @@ class CephadmDaemon():
         while True:
             if self.stop or exception_encountered:
                 break
-            
+
             if ctr >= refresh_interval:
                 ctr = 0
                 logger.debug("executing list-daemons scrape")
                 errors = []
                 s_time = time.time()
-                
+
                 try:
                     # list daemons should ideally be invoked with a fsid
                     data = list_daemons()
@@ -6328,7 +6334,7 @@ class CephadmDaemon():
                         }
                     )
                     logger.debug(f"completed list-daemons scrape - {elapsed}s")
-            
+
             time.sleep(CephadmDaemon.loop_delay)
             ctr += CephadmDaemon.loop_delay
         logger.info("list-daemons thread stopped")
@@ -6352,8 +6358,8 @@ class CephadmDaemon():
 
     def reload(self, *args):
         """reload -HUP received
-        
-        This is a placeholder function only, and serves to provide the hook that could 
+
+        This is a placeholder function only, and serves to provide the hook that could
         be exploited later if the exporter evolves to incorporate a config file
         """
         logger.info("Reload request received - ignoring, no action needed")
@@ -6379,7 +6385,7 @@ class CephadmDaemon():
 
         host_facts = self._create_thread(self._scrape_host_facts, 'host', 5)
         self.workers.append(host_facts)
-        
+
         daemons = self._create_thread(self._scrape_list_daemons, 'daemons', 20)
         self.workers.append(daemons)
 
@@ -6396,7 +6402,7 @@ class CephadmDaemon():
         self.http_server.token = self.token
         server_thread = self._create_thread(self.http_server.serve_forever, 'http_server')
         logger.info(f"https server listening on {self.http_server.server_address[0]}:{self.http_server.server_port}")
-        
+
         ctr = 0
         while server_thread.is_alive():
             if self.stop:
@@ -6416,11 +6422,11 @@ class CephadmDaemon():
             ctr += CephadmDaemon.loop_delay
 
         logger.info("Main http server thread stopped")
-    
+
     @property
     def unit_run(self):
-        
-        return """set -e 
+
+        return """set -e
 {py3} {bin_path} exporter --fsid {fsid} --id {daemon_id} --port {port} &""".format(
             py3 = shutil.which('python3'),
             bin_path=self.binary_path,
@@ -6471,7 +6477,7 @@ WantedBy=ceph-{fsid}.target
                 f.write(config[filename])
 
         # When __file__ is <stdin> we're being invoked over remoto via the orchestrator, so
-        # we pick up the file from where the orchestrator placed it - otherwise we'll 
+        # we pick up the file from where the orchestrator placed it - otherwise we'll
         # copy it to the binary location for this cluster
         if not __file__ == '<stdin>':
             shutil.copy(__file__,
@@ -6485,7 +6491,7 @@ WantedBy=ceph-{fsid}.target
             os.rename(
                 os.path.join(args.unit_dir, f"{self.unit_name}.new"),
                 os.path.join(args.unit_dir, self.unit_name))
-        
+
         call_throws(['systemctl', 'daemon-reload'])
         call(['systemctl', 'stop', self.unit_name],
             verbose_on_failure=False)
@@ -6498,7 +6504,7 @@ WantedBy=ceph-{fsid}.target
         unit_name = CephadmDaemon._unit_name(fsid, daemon_id)
         unit_path = os.path.join(args.unit_dir, unit_name)
         unit_run = os.path.join(args.data_dir, fsid, f"{daemon_type}.{daemon_id}", "unit.run")
-        try: 
+        try:
             with open(unit_run, "r") as u:
                 contents = u.read().strip(" &")
         except OSError:
@@ -6531,14 +6537,14 @@ WantedBy=ceph-{fsid}.target
 
 
 def command_exporter():
-    
+
     exporter = CephadmDaemon(args.fsid, daemon_id=args.id, port=args.port)
 
     if args.fsid not in os.listdir(args.data_dir):
         raise Error(f"cluster fsid '{args.fsid}' not found in '{args.data_dir}'")
-            
+
     exporter.run()
-        
+
 
 ##################################
 
@@ -6559,7 +6565,7 @@ def command_maintenance():
         raise Error('must pass --fsid to specify cluster')
 
     target = f"ceph-{args.fsid}.target"
-    
+
     if args.maintenance_action.lower() == 'enter':
         logger.info("Requested to place host into maintenance")
         if systemd_target_state(target):
@@ -7178,7 +7184,7 @@ def _get_parser():
         help='cluster FSID')
     parser_maintenance.add_argument(
         "maintenance_action",
-        type=str, 
+        type=str,
         choices=['enter', 'exit'],
         help="Maintenance action - enter maintenance, or exit maintenance")
     parser_maintenance.set_defaults(func=command_maintenance)

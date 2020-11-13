@@ -93,6 +93,14 @@ Host *
 
 CEPH_TYPES = set(CEPH_UPGRADE_ORDER)
 
+# Default container images -----------------------------------------------------
+DEFAULT_CEPH_IMAGE = 'docker.io/ceph/ceph'
+DEFAULT_PROMETHEUS_IMAGE = "docker.io/prom/prometheus:v2.18.1"
+DEFAULT_NODE_EXPORTER_IMAGE = "docker.io/prom/node-exporter:v0.18.1"
+DEFAULT_GRAFANA_IMAGE = "docker.io/ceph/ceph-grafana:6.7.4"
+DEFAULT_ALERT_MANAGER_IMAGE = "docker.io/prom/alertmanager:v0.20.0"
+# ------------------------------------------------------------------------------
+
 
 class CephadmCompletion(orchestrator.Completion[T]):
     def evaluate(self) -> None:
@@ -195,28 +203,28 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
         ),
         Option(
             'container_image_base',
-            default='docker.io/ceph/ceph',
+            default=DEFAULT_CEPH_IMAGE,
             desc='Container image name, without the tag',
             runtime=True,
         ),
         Option(
             'container_image_prometheus',
-            default='docker.io/prom/prometheus:v2.18.1',
+            default=DEFAULT_PROMETHEUS_IMAGE,
             desc='Prometheus container image',
         ),
         Option(
             'container_image_grafana',
-            default='docker.io/ceph/ceph-grafana:6.7.4',
+            default=DEFAULT_GRAFANA_IMAGE,
             desc='Prometheus container image',
         ),
         Option(
             'container_image_alertmanager',
-            default='docker.io/prom/alertmanager:v0.20.0',
+            default=DEFAULT_ALERT_MANAGER_IMAGE,
             desc='Prometheus container image',
         ),
         Option(
             'container_image_node_exporter',
-            default='docker.io/prom/node-exporter:v0.18.1',
+            default=DEFAULT_NODE_EXPORTER_IMAGE,
             desc='Prometheus container image',
         ),
         Option(
@@ -1345,7 +1353,7 @@ To check that the host is reachable:
                                            addr=spec.addr,
                                            error_ok=True, no_fsid=True)
         if code:
-            # err will contain stdout and stderr, so we filter on the message text to 
+            # err will contain stdout and stderr, so we filter on the message text to
             # only show the errors
             errors = [_i.replace("ERROR: ", "") for _i in err if _i.startswith('ERROR')]
             raise OrchestratorError('New host %s (%s) failed check(s): %s' % (
@@ -1461,7 +1469,7 @@ To check that the host is reachable:
 
         Placing a host into maintenance disables the cluster's ceph target in systemd
         and stops all ceph daemons. If the host is an osd host we apply the noout flag
-        for the host subtree in crush to prevent data movement during a host maintenance 
+        for the host subtree in crush to prevent data movement during a host maintenance
         window.
 
         :param hostname: (str) name of the host (must match an inventory hostname)
@@ -1529,7 +1537,7 @@ To check that the host is reachable:
         """Exit maintenance mode and return a host to an operational state
 
         Returning from maintnenance will enable the clusters systemd target and
-        start it, and remove any noout that has been added for the host if the 
+        start it, and remove any noout that has been added for the host if the
         host has osd daemons
 
         :param hostname: (str) host name
