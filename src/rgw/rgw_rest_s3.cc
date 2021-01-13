@@ -6237,7 +6237,7 @@ int RGWSelectObj_ObjStore_S3::send_response_data(bufferlist& bl, off_t ofs, off_
 
   for(auto& it : bl.buffers()) {
 
-    ldout(s->cct, 0) << "processing segment " << i << "out of " << bl_len(bl) << " off " << ofs
+    ldout(s->cct, 10) << "processing segment " << i << "out of " << bl_len(bl) << " off " << ofs
                       << " len " << len << " obj-size " << s->obj_size << dendl;
 
     if(it.length() == 0)
@@ -6250,6 +6250,7 @@ int RGWSelectObj_ObjStore_S3::send_response_data(bufferlist& bl, off_t ofs, off_
     if(status<0) {
       break;
     }
+    i++;
   }
 
   chunk_number++;
